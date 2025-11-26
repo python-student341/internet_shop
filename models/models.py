@@ -16,6 +16,7 @@ class UserModel(Base):
     name: Mapped[str] = mapped_column()
 
     card = relationship('CardModel', back_populates='user')
+    cart = relationship('CartModel', back_populates='user')
 
 
 class CardModel(Base):
@@ -47,6 +48,29 @@ class ProductModel(Base):
     price: Mapped[float] = mapped_column(nullable=False)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
     image_path: Mapped[str] = mapped_column(nullable=False)
-    category_id: Mapped[int] = mapped_column(ForeignKey('category.id'))
+    category_id: Mapped[int] = mapped_column(ForeignKey('category.id', ondelete="CASCADE"))
 
     category = relationship('CategoryModel', back_populates='products')
+
+
+class CartModel(Base):
+    __tablename__ = 'cart'
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    total_price: Mapped[int] = mapped_column(default=0)
+
+    user = relationship('UserModel', back_populates='cart')
+    items = relationship('CartItemModel', back_populates='cart')
+
+
+class CartItemModel(Base):
+    __tablename__ = 'cart_items'
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    cart_id: Mapped[int] = mapped_column(ForeignKey('cart.id', ondelete='CASCADE'))
+    product_id: Mapped[int] = mapped_column(ForeignKey('products.id'))
+    quantity: Mapped[int] = mapped_column(default=1)
+
+    cart = relationship('CartModel', back_populates='items')
+    product = relationship('ProductModel')

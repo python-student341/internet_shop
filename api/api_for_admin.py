@@ -6,10 +6,11 @@ from models.models import CategoryModel, ProductModel, UserModel
 from schemas.category_schema import CategoryShema, ChangeCategoryNameSchema
 from schemas.product_schema import ProductSchema, ChangeProductNameSchema, ChangeProductPriceSchema
 from database.database import session_dep
-from database.hash import security, decode_token
+from database.hash import security
 
 
 router = APIRouter()
+
 
 
 #-----------Category----------#
@@ -19,8 +20,8 @@ async def add_category(data: CategoryShema, session: session_dep, token: str = C
     if not token:
         raise HTTPException(status_code=401, detail='No token')
 
-    payload = decode_token(token)
-    user_id = int(payload["sub"])
+    payload = security._decode_token(token)
+    user_id = int(payload.sub)
 
     query = select(UserModel).where(UserModel.id == user_id)
     result = await session.execute(query)
@@ -51,19 +52,10 @@ async def add_category(data: CategoryShema, session: session_dep, token: str = C
 async def change_category_name(category_id: int, data: ChangeCategoryNameSchema, session: session_dep, token: str = Cookie(None)):
 
     if not token:
-        return {'success': False, 'message': 'No token'}
+        raise HTTPException(status_code=401, detail='No token')
 
-    try:
-        payload = security._decode_token(token)
-
-        if payload.type != "access":
-            raise HTTPException(status_code=401, detail="Invalid token type")
-        if not payload.fresh:
-            raise HTTPException(status_code=401, detail="Token not fresh")
-        
-        user_id = int(payload.sub)
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid token")
+    payload = security._decode_token(token)
+    user_id = int(payload.sub)
 
     query = select(UserModel).where(UserModel.id == user_id)
     result = await session.execute(query)
@@ -99,19 +91,10 @@ async def change_category_name(category_id: int, data: ChangeCategoryNameSchema,
 async def delete_category(category_id: int, session: session_dep, token: str = Cookie(None)):
 
     if not token:
-        return {'success': False, 'message': 'No token'}
+        raise HTTPException(status_code=401, detail='No token')
 
-    try:
-        payload = security._decode_token(token)
-
-        if payload.type != "access":
-            raise HTTPException(status_code=401, detail="Invalid token type")
-        if not payload.fresh:
-            raise HTTPException(status_code=401, detail="Token not fresh")
-        
-        user_id = int(payload.sub)
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid token")
+    payload = security._decode_token(token)
+    user_id = int(payload.sub)
 
     query = select(UserModel).where(UserModel.id == user_id)
     result = await session.execute(query)
@@ -139,24 +122,15 @@ async def delete_category(category_id: int, session: session_dep, token: str = C
 
 
 
-#-----------Products----------#
+#-----------Products-----------#
 @router.post('/category/product/add_product', tags=['For admin'])
 async def add_product(session: session_dep, category_id: int, name: str = Form(...), price: float = Form(...), image: UploadFile = File(...), token: str = Cookie(None)):
 
     if not token:
-        return {'success': False, 'message': 'No token'}
+        raise HTTPException(status_code=401, detail='No token')
 
-    try:
-        payload = security._decode_token(token)
-
-        if payload.type != "access":
-            raise HTTPException(status_code=401, detail="Invalid token type")
-        if not payload.fresh:
-            raise HTTPException(status_code=401, detail="Token not fresh")
-        
-        user_id = int(payload.sub)
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid token")
+    payload = security._decode_token(token)
+    user_id = int(payload.sub)
 
     query = select(UserModel).where(UserModel.id == user_id)
     result = await session.execute(query)
@@ -175,8 +149,7 @@ async def add_product(session: session_dep, category_id: int, name: str = Form(.
     if not current_category:
         raise HTTPException(status_code=404, detail='Category not found')
 
-    file_path = f"static/images/{image.filename}"
-
+    file_path = f"/static/images/{image.filename}"
     with open(file_path, "wb") as f:
         f.write(await image.read())
 
@@ -199,19 +172,10 @@ async def add_product(session: session_dep, category_id: int, name: str = Form(.
 async def change_product_name(product_id: int, data: ChangeProductNameSchema, session: session_dep, token: str = Cookie(None)):
 
     if not token:
-        return {'success': False, 'message': 'No token'}
+        raise HTTPException(status_code=401, detail='No token')
 
-    try:
-        payload = security._decode_token(token)
-
-        if payload.type != "access":
-            raise HTTPException(status_code=401, detail="Invalid token type")
-        if not payload.fresh:
-            raise HTTPException(status_code=401, detail="Token not fresh")
-        
-        user_id = int(payload.sub)
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid token")
+    payload = security._decode_token(token)
+    user_id = int(payload.sub)
 
     query = select(UserModel).where(UserModel.id == user_id)
     result = await session.execute(query)
@@ -247,19 +211,10 @@ async def change_product_name(product_id: int, data: ChangeProductNameSchema, se
 async def change_product_price(product_id: int, data: ChangeProductPriceSchema, session: session_dep, token: str = Cookie(None)):
 
     if not token:
-        return {'success': False, 'message': 'No token'}
+        raise HTTPException(status_code=401, detail='No token')
 
-    try:
-        payload = security._decode_token(token)
-
-        if payload.type != "access":
-            raise HTTPException(status_code=401, detail="Invalid token type")
-        if not payload.fresh:
-            raise HTTPException(status_code=401, detail="Token not fresh")
-        
-        user_id = int(payload.sub)
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid token")
+    payload = security._decode_token(token)
+    user_id = int(payload.sub)
 
     query = select(UserModel).where(UserModel.id == user_id)
     result = await session.execute(query)
@@ -290,19 +245,10 @@ async def change_product_price(product_id: int, data: ChangeProductPriceSchema, 
 async def change_product_image(product_id: int, session: session_dep, image: UploadFile = File(...), token: str = Cookie(None)):
 
     if not token:
-        return {'success': False, 'message': 'No token'}
+        raise HTTPException(status_code=401, detail='No token')
 
-    try:
-        payload = security._decode_token(token)
-
-        if payload.type != "access":
-            raise HTTPException(status_code=401, detail="Invalid token type")
-        if not payload.fresh:
-            raise HTTPException(status_code=401, detail="Token not fresh")
-        
-        user_id = int(payload.sub)
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid token")
+    payload = security._decode_token(token)
+    user_id = int(payload.sub)
 
     query = select(UserModel).where(UserModel.id == user_id)
     result = await session.execute(query)
@@ -321,7 +267,7 @@ async def change_product_image(product_id: int, session: session_dep, image: Upl
     if not current_product:
         raise HTTPException(status_code=404, detail='Product not found')
 
-    file_path = f"static/images/{image.filename}"
+    file_path = f"/static/images/{image.filename}"
     with open(file_path, "wb") as f:
         f.write(await image.read())
 
@@ -340,19 +286,10 @@ async def change_product_image(product_id: int, session: session_dep, image: Upl
 async def delete_product(product_id: int, session: session_dep, token: str = Cookie(None)):
 
     if not token:
-        return {'success': False, 'message': 'No token'}
+        raise HTTPException(status_code=401, detail='No token')
 
-    try:
-        payload = security._decode_token(token)
-
-        if payload.type != "access":
-            raise HTTPException(status_code=401, detail="Invalid token type")
-        if not payload.fresh:
-            raise HTTPException(status_code=401, detail="Token not fresh")
-        
-        user_id = int(payload.sub)
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid token")
+    payload = security._decode_token(token)
+    user_id = int(payload.sub)
 
     query = select(UserModel).where(UserModel.id == user_id)
     result = await session.execute(query)

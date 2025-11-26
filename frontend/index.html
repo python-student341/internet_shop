@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Monochrome Shop</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Monochrome polished theme */
+    :root{
+      --bg:#ffffff;
+      --muted:#f3f3f3;
+      --border:#e5e5e5;
+      --text:#111111;
+      --muted-text:#666666;
+      --accent:#111827;
+      --success:#16a34a;
+      --danger:#dc2626;
+    }
+    html,body{height:100%}
+    body{
+      background:var(--bg);
+      color:var(--text);
+      font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      -webkit-font-smoothing:antialiased;
+      margin:0;
+    }
+    .soft { background: var(--muted); }
+    .card-hover { transition: transform .18s ease, box-shadow .18s ease; }
+    .card-hover:hover { transform: translateY(-6px); box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
+    .icon-btn { width:44px; height:44px; display:inline-grid; place-items:center; border-radius:8px; border:1px solid var(--border); background:#fff; cursor:pointer; }
+    .icon-btn:hover { background:var(--accent); color:#fff; }
+    .hidden { display:none !important; }
+    .fade { transition: opacity .2s ease; }
+    /* cart drawer */
+    .drawer { transition: transform .22s ease, opacity .22s ease; transform: translateX(-8px); }
+    /* make images cover */
+    .img-cover { object-fit: cover; width:100%; height:100%; display:block; } /* display:block убирает baseline gap */
+    .img-wrap { line-height: 0; } /* убирает вертикальные сдвиги текста при подгрузке изображений */
+    /* toast */
+    #toastWrap { position: fixed; right: 18px; bottom: 18px; z-index:9999; display:flex; flex-direction:column; gap:8px; align-items:flex-end; }
+    .toast { min-width:220px; max-width:360px; padding:10px 12px; border-radius:8px; color:#fff; box-shadow:0 8px 20px rgba(0,0,0,0.12); font-size:13px; }
+    .toast.info{ background: #111827; }
+    .toast.success{ background: var(--success); }
+    .toast.error{ background: var(--danger); }
+    /* minor helpers */
+    .text-muted { color: var(--muted-text); }
+    .btn { padding:8px 12px; border-radius:8px; border:1px solid var(--border); background:#fff; cursor:pointer; }
+    /* responsive adjustments */
+    @media (max-width:900px){
+      nav#sidebar{ display:none; }
+      .icon-btn { width:40px; height:40px; }
+      #cartDrawer{ left:8px; width:320px; top:14vh; }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+<!-- ---------- HEADER ---------- -->
+<header class="flex items-center justify-between p-4 border-b" style="border-color:var(--border)">
+  <div class="flex items-center gap-3">
+    <button id="btnCartIcon" class="icon-btn" title="Cart (left)">
+      🛒
+    </button>
+    <div class="ml-2 text-lg font-semibold">Monochrome Shop</div>
+  </div>
+
+  <div id="adminCenter" class="hidden">
+    <button id="btnAdminCenter" class="px-3 py-1 border rounded text-sm btn">Admin</button>
+  </div>
+
+  <div class="flex items-center gap-3">
+    <button id="btnCardIcon" class="icon-btn" title="Card / Payment (right)">💳</button>
+    <button id="btnProfileIcon" class="icon-btn" title="Profile (right)">👤</button>
+
+    <div id="authLinks" class="flex gap-2">
+      <button id="openLogin" class="px-3 py-1 border rounded text-sm btn">Login</button>
+      <button id="openRegister" class="px-3 py-1 border rounded text-sm btn">Register</button>
+    </div>
+
+    <div id="userLinks" class="hidden items-center gap-3">
+      <div id="displayName" class="text-sm font-medium"></div>
+      <button id="btnLogout" class="px-3 py-1 border rounded text-sm btn">Logout</button>
+    </div>
+  </div>
+</header>
+
+<!-- ---------- LAYOUT ---------- -->
+<div class="flex flex-1 overflow-hidden">
+
+  <!-- CART DRAWER (left top triggered) -->
+  <aside id="cartDrawer" class="drawer fixed left-4 top-20 w-96 bg-white border rounded shadow p-4 z-40 hidden" style="border-color:var(--border)">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-lg font-semibold">Your Cart</h3>
+      <button id="closeCart" class="text-sm px-2 py-1 border rounded btn">Close</button>
+    </div>
+    <div id="cartItems" class="space-y-3 max-h-72 overflow-auto"></div>
+    <div class="mt-4 border-t pt-3" style="border-color:var(--border)">
+      <div class="flex justify-between items-center mb-3">
+        <div class="text-sm text-muted">Total</div>
+        <div id="cartTotal" class="font-semibold">$0</div>
+      </div>
+      <div class="flex gap-2">
+        <button id="btnClearCart" class="flex-1 py-2 border rounded btn">Clear cart</button>
+        <button id="btnPayAll" class="flex-1 py-2 border rounded btn">Pay all</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main id="mainArea" class="flex-1 flex overflow-hidden">
+
+    <!-- Sidebar categories -->
+    <nav id="sidebar" class="w-64 border-r p-4 overflow-auto" style="border-color:var(--border)">
+      <h4 class="text-sm font-semibold mb-3">Categories</h4>
+      <div id="categoriesList" class="flex flex-col gap-2"></div>
+    </nav>
+
+    <!-- Catalog area -->
+    <section class="flex-1 p-6 overflow-auto">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h2 class="text-2xl font-bold">All products</h2>
+          <p class="text-sm text-muted">Browse products uploaded by admins</p>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <input id="searchInput" placeholder="Search..." class="px-3 py-2 border rounded" style="border-color:var(--border)">
+          <select id="sortSelect" class="px-3 py-2 border rounded" style="border-color:var(--border)">
+            <option value="new">Newest</option>
+            <option value="price_asc">Price ↑</option>
+            <option value="price_desc">Price ↓</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="productsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ---------- PROFILE PANEL (right-top modal) ---------- -->
+<div id="profilePanel" class="fixed right-6 top-20 w-96 bg-white border rounded shadow p-4 z-50 hidden" style="border-color:var(--border)">
+  <div class="flex justify-between items-center mb-3">
+    <h3 class="font-semibold">Profile</h3>
+    <button id="closeProfile" class="btn">✕</button>
+  </div>
+
+  <div id="profileContent">
+    <p class="text-sm text-muted">Name</p>
+    <div id="profileName" class="font-medium mb-2"></div>
+
+    <p class="text-sm text-muted">Email</p>
+    <div id="profileEmail" class="font-medium mb-2"></div>
+
+    <p class="text-sm text-muted">Balance</p>
+    <div id="profileBalance" class="font-medium mb-3">$0</div>
+
+    <div class="space-y-2">
+      <button id="openEditName" class="w-full py-2 border rounded btn">Edit Name</button>
+      <button id="openChangePassword" class="w-full py-2 border rounded btn">Change Password</button>
+      <button id="openDeleteAccount" class="w-full py-2 border rounded text-red-600 btn">Delete Account</button>
+    </div>
+  </div>
+
+  <div id="profileEdit" class="hidden mt-3">
+    <input id="newNameInput" class="w-full p-2 border rounded mb-2" placeholder="New name">
+    <input id="namePassword" class="w-full p-2 border rounded mb-2" placeholder="Current password" type="password">
+    <div class="flex gap-2">
+      <button id="saveNameBtn" class="flex-1 py-2 border rounded btn">Save</button>
+      <button id="cancelEditName" class="flex-1 py-2 border rounded btn">Cancel</button>
+    </div>
+  </div>
+
+  <div id="passwordEdit" class="hidden mt-3">
+    <input id="oldPass" type="password" placeholder="Old password" class="w-full p-2 border rounded mb-2">
+    <input id="newPass" type="password" placeholder="New password" class="w-full p-2 border rounded mb-2">
+    <input id="newPassRepeat" type="password" placeholder="Repeat new password" class="w-full p-2 border rounded mb-2">
+    <div class="flex gap-2">
+      <button id="savePassBtn" class="flex-1 py-2 border rounded btn">Change</button>
+      <button id="cancelPassBtn" class="flex-1 py-2 border rounded btn">Cancel</button>
+    </div>
+  </div>
+
+  <div id="deleteAccountBox" class="hidden mt-3">
+    <p class="text-sm text-muted mb-2">Type your password to delete account</p>
+    <input id="deletePassInput" type="password" placeholder="Password" class="w-full p-2 border rounded mb-2">
+    <div class="flex gap-2">
+      <button id="confirmDeleteBtn" class="flex-1 py-2 border rounded text-red-600 btn">Delete</button>
+      <button id="cancelDeleteBtn" class="flex-1 py-2 border rounded btn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ---------- CARD PANEL (top-right) ---------- -->
+<div id="cardPanel" class="fixed right-6 top-20 w-96 bg-white border rounded shadow p-4 z-50 hidden" style="border-color:var(--border)">
+  <div class="flex justify-between items-center mb-3">
+    <h3 class="font-semibold">Card</h3>
+    <button id="closeCard" class="btn">✕</button>
+  </div>
+
+  <div id="cardContent">
+    <div id="cardInfoArea">
+      <p class="text-sm text-muted">Card Info</p>
+      <div id="cardInfo" class="mb-3">No card found</div>
+
+      <div class="space-y-2">
+        <button id="btnCreateCard" class="w-full py-2 border rounded btn">Create Card</button>
+        <button id="btnAddBalance" class="w-full py-2 border rounded btn">Add Balance</button>
+        <button id="btnDeleteCard" class="w-full py-2 border rounded text-red-600 btn">Delete Card</button>
+      </div>
+    </div>
+
+    <div id="cardCreateForm" class="hidden mt-3">
+      <input id="cardUserPass" type="password" class="w-full p-2 border rounded mb-2" placeholder="Your account password">
+      <input id="cardPass" type="password" class="w-full p-2 border rounded mb-2" placeholder="Card password">
+      <input id="cardPassRepeat" type="password" class="w-full p-2 border rounded mb-2" placeholder="Repeat card password">
+      <div class="flex gap-2">
+        <button id="confirmCreateCard" class="flex-1 py-2 border rounded btn">Create</button>
+        <button id="cancelCreateCard" class="flex-1 py-2 border rounded btn">Cancel</button>
+      </div>
+    </div>
+
+    <div id="cardAddBalanceForm" class="hidden mt-3">
+      <input id="addAmount" type="number" class="w-full p-2 border rounded mb-2" placeholder="Amount">
+      <input id="addCardPass" type="password" class="w-full p-2 border rounded mb-2" placeholder="Card password">
+      <div class="flex gap-2">
+        <button id="confirmAddBalance" class="flex-1 py-2 border rounded btn">Add</button>
+        <button id="cancelAddBalance" class="flex-1 py-2 border rounded btn">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ---------- ADMIN PANEL (center modal) ---------- -->
+<div id="adminPanel" class="fixed inset-0 bg-white z-60 p-8 overflow-auto hidden">
+  <div class="max-w-4xl mx-auto">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-2xl font-bold">Admin Panel</h2>
+      <div class="flex gap-2">
+        <button id="closeAdmin" class="px-3 py-1 border rounded btn">Close</button>
+      </div>
+    </div>
+
+    <section class="grid grid-cols-2 gap-6">
+
+      <!-- categories manager -->
+      <div class="p-4 border rounded">
+        <h3 class="font-semibold mb-3">Categories</h3>
+        <div class="flex gap-2 mb-3">
+          <input id="adminNewCategory" class="flex-1 p-2 border rounded" placeholder="New category name">
+          <button id="adminAddCategory" class="px-3 py-2 border rounded btn">Add</button>
+        </div>
+        <div id="adminCategories" class="space-y-2 max-h-64 overflow-auto"></div>
+      </div>
+
+      <!-- products manager -->
+      <div class="p-4 border rounded">
+        <h3 class="font-semibold mb-3">Add product</h3>
+        <input id="adminProductName" class="w-full p-2 border rounded mb-2" placeholder="Product name">
+        <input id="adminProductPrice" type="number" class="w-full p-2 border rounded mb-2" placeholder="Price">
+        <select id="adminProductCategory" class="w-full p-2 border rounded mb-2"></select>
+        <input id="adminProductImage" type="file" class="mb-3">
+        <div class="flex gap-2">
+          <button id="adminAddProduct" class="flex-1 py-2 border rounded btn">Add product</button>
+          <button id="adminRefresh" class="flex-1 py-2 border rounded btn">Refresh</button>
+        </div>
+
+        <h4 class="mt-4 font-semibold">Products list</h4>
+        <div id="adminProductsList" class="space-y-2 max-h-48 overflow-auto mt-2"></div>
+      </div>
+
+    </section>
+  </div>
+</div>
+
+<!-- ---------- Login/Register Modal (center) ---------- -->
+<div id="authModal" class="fixed inset-0 z-70 flex items-center justify-center bg-white hidden">
+  <div class="w-full max-w-md p-6 border rounded">
+    <h3 id="authTitle" class="text-xl font-semibold mb-4">Login</h3>
+    <div id="authForm" class="space-y-3">
+      <input id="authEmail" class="w-full p-2 border rounded" placeholder="Email">
+      <input id="authPassword" type="password" class="w-full p-2 border rounded" placeholder="Password">
+      <input id="authName" class="w-full p-2 border rounded hidden" placeholder="Name (for register)">
+      <input id="authRepeat" type="password" class="w-full p-2 border rounded hidden" placeholder="Repeat password">
+      <div class="flex gap-2">
+        <button id="authSubmit" class="flex-1 py-2 border rounded btn">Login</button>
+        <button id="authSwitch" class="flex-1 py-2 border rounded btn">Switch</button>
+      </div>
+      <div class="mt-2 text-sm text-muted">You will be redirected to the store after login.</div>
+    </div>
+    <div class="mt-3 text-right">
+      <button id="authClose" class="px-3 py-1 border rounded btn">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast wrapper -->
+<div id="toastWrap" aria-live="polite"></div>
+
+<script>
+/* -------------- Config & State -------------- */
+const API_ROOT = ''; // empty -> same origin; change if backend hosted elsewhere
+let isAdmin = false;
+let currentUser = null;
+let cartData = { cart_items: [], total_price: 0 };
+
+// Token saved after login (server also sets cookie usually)
+window.APP_TOKEN = null;
+
+/* ---------- Helpers ---------- */
+function q(id){ return document.getElementById(id); }
+function show(el){ if(el) el.classList.remove('hidden'); }
+function hide(el){ if(el) el.classList.add('hidden'); }
+function fmtPrice(v){ return '$' + Number(v || 0).toFixed(2); }
+
+/* toast notifications (instead of blocking alerts) */
+function notify(message, type='info', ttl=3500){
+  const wrap = q('toastWrap');
+  if(!wrap) return console.log(type.toUpperCase(), message);
+  const el = document.createElement('div');
+  el.className = `toast ${type==='error'?'error':type==='success'?'success':'info'}`;
+  el.textContent = message;
+  wrap.appendChild(el);
+  setTimeout(()=>{ el.style.opacity = '0'; el.style.transform = 'translateY(6px)'; }, ttl-300);
+  setTimeout(()=>wrap.removeChild(el), ttl);
+}
+
+/* cookie helpers */
+function setCookie(name, value, days=1){
+  const expires = new Date(Date.now() + days*864e5).toUTCString();
+  document.cookie = name + '=' + encodeURIComponent(value) + '; path=/; expires=' + expires;
+}
+function getCookie(name){
+  return document.cookie.split('; ').reduce((r, v) => {
+    const parts = v.split('=');
+    return parts[0] === name ? decodeURIComponent(parts.slice(1).join('=')) : r;
+  }, '');
+}
+
+/* Robust prefix for image paths — handles static/ and absolute URLs
+   Изменено: не добавляем ведущий слэш для "static/..." (чтобы путь оставался относительным к приложению),
+   нормализуем обратные слэши. */
+function prefixImg(path){
+  const PLACEHOLDER = 'https://via.placeholder.com/600x400?text=No+image';
+  if(!path) return PLACEHOLDER;
+  if(typeof path !== 'string') return PLACEHOLDER;
+  path = path.trim();
+  if(!path) return PLACEHOLDER;
+  // Normalize backslashes to slashes
+  path = path.replace(/\\+/g, '/');
+
+  // absolute URLs ok
+  if(path.startsWith('http://') || path.startsWith('https://')) return path;
+  // if user provided absolute-root path (/static/...) keep it
+  if(path.startsWith('/')) return path;
+  // if path starts with static/... — return as relative path (do not force leading slash)
+  if(path.startsWith('static/')) return path;
+  // already root /static/ handled above, otherwise return as relative
+  return path;
+}
+
+/* ---------- apiFetch wrapper ----------
+   - Always uses credentials: 'include'
+   - Appends token as query param if window.APP_TOKEN exists
+   - If sending JSON body, injects token into body under 'token' (if not present)
+   - If FormData, appends token field to FormData
+*/
+async function apiFetch(path, opts = {}, optsExtra = { appendTokenQuery: true, injectTokenToBody: true }){
+  const url = (path.startsWith('http') || path.startsWith('/')) ? path : (API_ROOT.replace(/\/$/, '') + '/' + path.replace(/^\//, ''));
+  const method = (opts.method || 'GET').toUpperCase();
+  const headers = Object.assign({}, opts.headers || {});
+  const token = window.APP_TOKEN || getCookie('token') || localStorage.getItem('token') || null;
+
+  let finalUrl = url;
+  let body = opts.body;
+
+  // If body is JSON and injectTokenToBody true, put token into JSON
+  if(body && headers['Content-Type'] && headers['Content-Type'].includes('application/json') && optsExtra.injectTokenToBody && token){
+    try {
+      const parsed = typeof body === 'string' ? JSON.parse(body) : body;
+      if(parsed && typeof parsed === 'object' && !('token' in parsed)){
+        parsed.token = token;
+        body = JSON.stringify(parsed);
+      } else {
+        body = JSON.stringify(parsed);
+      }
+    } catch(e){
+      // ignore parsing errors
+    }
+  }
+
+  // If body is FormData -> append token if present
+  if(body instanceof FormData && optsExtra.injectTokenToBody && token){
+    if(!body.get('token')) body.append('token', token);
+  }
+
+  // Append token as query param if requested (some backend signatures mistakenly read token from query)
+  if(token && optsExtra.appendTokenQuery){
+    const u = new URL(finalUrl, location.origin);
+    if(!u.searchParams.get('token')) u.searchParams.set('token', token);
+    finalUrl = u.toString();
+  }
+
+  const fetchOpts = Object.assign({}, opts, {
+    method,
+    headers,
+    credentials: 'include',
+    body
+  });
+
+  try {
+    const res = await fetch(finalUrl, fetchOpts);
+    // Try to parse json (safe)
+    let text = null, json = null;
+    try { text = await res.text(); } catch(e) { text = null; }
+    try { if(text) json = JSON.parse(text); } catch(e){ json = null; }
+    if(!res.ok){
+      // Provide rich error to caller
+      return { ok: false, status: res.status, text, json, res };
+    }
+    return { ok: true, status: res.status, json, text, res };
+  } catch(e){
+    return { ok:false, status: 0, error: e };
+  }
+}
+
+/* ---------- Elements ---------- */
+const btnCartIcon = q('btnCartIcon');
+const cartDrawer = q('cartDrawer');
+const closeCart = q('closeCart');
+const cartItemsEl = q('cartItems');
+const cartTotalEl = q('cartTotal');
+const btnClearCart = q('btnClearCart');
+const btnPayAll = q('btnPayAll');
+
+const categoriesList = q('categoriesList');
+const productsGrid = q('productsGrid');
+const searchInput = q('searchInput');
+const sortSelect = q('sortSelect');
+
+const btnCardIcon = q('btnCardIcon');
+const btnProfileIcon = q('btnProfileIcon');
+const authLinks = q('authLinks');
+const userLinks = q('userLinks');
+const displayName = q('displayName');
+const btnLogout = q('btnLogout');
+
+const profilePanel = q('profilePanel');
+const closeProfile = q('closeProfile');
+const profileName = q('profileName');
+const profileEmail = q('profileEmail');
+const profileBalance = q('profileBalance');
+const openEditName = q('openEditName');
+const profileEdit = q('profileEdit');
+const newNameInput = q('newNameInput');
+const namePassword = q('namePassword');
+const saveNameBtn = q('saveNameBtn');
+const cancelEditName = q('cancelEditName');
+const passwordEdit = q('passwordEdit');
+const openChangePassword = q('openChangePassword');
+const savePassBtn = q('savePassBtn');
+const cancelPassBtn = q('cancelPassBtn');
+const deleteAccountBox = q('deleteAccountBox');
+const openDeleteAccount = q('openDeleteAccount');
+const deletePassInput = q('deletePassInput');
+const confirmDeleteBtn = q('confirmDeleteBtn');
+const cancelDeleteBtn = q('cancelDeleteBtn');
+
+const cardPanel = q('cardPanel');
+const closeCard = q('closeCard');
+const btnCreateCard = q('btnCreateCard');
+const btnAddBalance = q('btnAddBalance');
+const btnDeleteCard = q('btnDeleteCard');
+const cardInfo = q('cardInfo');
+const cardCreateForm = q('cardCreateForm');
+const confirmCreateCard = q('confirmCreateCard');
+const cancelCreateCard = q('cancelCreateCard');
+const cardUserPass = q('cardUserPass');
+const cardPass = q('cardPass');
+const cardPassRepeat = q('cardPassRepeat');
+const cardAddBalanceForm = q('cardAddBalanceForm');
+const confirmAddBalance = q('confirmAddBalance');
+const cancelAddBalance = q('cancelAddBalance');
+const addAmount = q('addAmount');
+const addCardPass = q('addCardPass');
+
+const adminCenter = q('adminCenter');
+const btnAdminCenter = q('btnAdminCenter');
+const adminPanel = q('adminPanel');
+const closeAdmin = q('closeAdmin');
+const adminNewCategory = q('adminNewCategory');
+const adminAddCategory = q('adminAddCategory');
+const adminCategories = q('adminCategories');
+const adminProductName = q('adminProductName');
+const adminProductPrice = q('adminProductPrice');
+const adminProductCategory = q('adminProductCategory');
+const adminProductImage = q('adminProductImage');
+const adminAddProduct = q('adminAddProduct');
+const adminProductsList = q('adminProductsList');
+const adminRefresh = q('adminRefresh');
+
+const authModal = q('authModal');
+const authTitle = q('authTitle');
+const authEmail = q('authEmail');
+const authPassword = q('authPassword');
+const authName = q('authName');
+const authRepeat = q('authRepeat');
+const authSubmit = q('authSubmit');
+const authSwitch = q('authSwitch');
+const authClose = q('authClose');
+
+/* ---------- UI Wiring ---------- */
+// Auth modal openers
+q('openLogin')?.addEventListener('click', ()=>openAuth('login'));
+q('openRegister')?.addEventListener('click', ()=>openAuth('register'));
+authClose?.addEventListener('click', ()=>hide(authModal));
+authSwitch?.addEventListener('click', ()=>toggleAuthMode());
+authSubmit?.addEventListener('click', ()=>handleAuthSubmit());
+
+// top icons
+btnCartIcon?.addEventListener('click', ()=>{ if(cartDrawer.classList.contains('hidden')) show(cartDrawer); else hide(cartDrawer); });
+closeCart?.addEventListener('click', ()=>hide(cartDrawer));
+btnCardIcon?.addEventListener('click', ()=>{ if(cardPanel.classList.contains('hidden')) show(cardPanel); else hide(cardPanel); });
+closeCard?.addEventListener('click', ()=>hide(cardPanel));
+btnProfileIcon?.addEventListener('click', ()=>{ if(profilePanel.classList.contains('hidden')) show(profilePanel); else hide(profilePanel); });
+
+// profile interactions
+closeProfile?.addEventListener('click', ()=>hide(profilePanel));
+openEditName?.addEventListener('click', ()=>{ show(profileEdit); hide(passwordEdit); hide(deleteAccountBox); });
+cancelEditName?.addEventListener('click', ()=>{ hide(profileEdit); });
+openChangePassword?.addEventListener('click', ()=>{ show(passwordEdit); hide(profileEdit); hide(deleteAccountBox); });
+cancelPassBtn?.addEventListener('click', ()=>{ hide(passwordEdit); });
+openDeleteAccount?.addEventListener('click', ()=>{ show(deleteAccountBox); hide(profileEdit); hide(passwordEdit); });
+cancelDeleteBtn?.addEventListener('click', ()=>{ hide(deleteAccountBox); });
+
+saveNameBtn?.addEventListener('click', updateName);
+savePassBtn?.addEventListener('click', changePassword);
+confirmDeleteBtn?.addEventListener('click', deleteAccount);
+
+// card interactions
+btnCreateCard?.addEventListener('click', ()=>{ show(cardCreateForm); hide(cardAddBalanceForm); });
+cancelCreateCard?.addEventListener('click', ()=>{ hide(cardCreateForm); });
+confirmCreateCard?.addEventListener('click', createCard);
+btnAddBalance?.addEventListener('click', ()=>{ show(cardAddBalanceForm); hide(cardCreateForm); });
+cancelAddBalance?.addEventListener('click', ()=>{ hide(cardAddBalanceForm); });
+confirmAddBalance?.addEventListener('click', addBalance);
+btnDeleteCard?.addEventListener('click', deleteCard);
+
+// admin
+btnAdminCenter?.addEventListener('click', ()=>{ show(adminPanel); });
+closeAdmin?.addEventListener('click', ()=>hide(adminPanel));
+adminAddCategory?.addEventListener('click', adminAddCategoryFn);
+adminAddProduct?.addEventListener('click', adminAddProductFn);
+adminRefresh?.addEventListener('click', loadAdminData);
+
+/* ---------- Auth modal logic ---------- */
+let authMode = 'login';
+function openAuth(mode='login'){
+  authMode = mode;
+  authTitle.textContent = (mode==='login') ? 'Login' : 'Register';
+  if(mode==='login'){
+    authName.classList.add('hidden'); authRepeat.classList.add('hidden');
+    authPassword.placeholder = 'Password'; authSubmit.textContent='Login';
+  } else {
+    authName.classList.remove('hidden'); authRepeat.classList.remove('hidden');
+    authPassword.placeholder = 'Password'; authSubmit.textContent='Register';
+  }
+  show(authModal);
+  authEmail.value=''; authPassword.value=''; authName.value=''; authRepeat.value='';
+}
+function toggleAuthMode(){
+  openAuth(authMode==='login' ? 'register' : 'login');
+}
+
+/* ---------- AUTH / USER ---------- */
+async function handleAuthSubmit(){
+  const email = authEmail.value.trim();
+  const password = authPassword.value;
+  if(!email || !password){ notify('Enter email and password', 'error'); return; }
+
+  try {
+    if(authMode === 'login'){
+      const payload = { email, password };
+      const r = await apiFetch('/users/sign_in', {
+        method:'POST',
+        headers:{ 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }, { appendTokenQuery:false, injectTokenToBody:false });
+
+      if(!r.ok){ notify('Login failed: ' + (r.text || r.json?.detail || r.status), 'error'); return; }
+
+      // response body contains token (per your backend)
+      const data = r.json || JSON.parse(r.text || '{}');
+      // store token safely for future requests (server also sets cookie)
+      if(data && data.token){
+        window.APP_TOKEN = data.token;
+        try{ localStorage.setItem('token', data.token); }catch{}
+        try{ setCookie('token', data.token, 1); }catch{}
+      }
+
+      hide(authModal);
+      notify('Login successful', 'success');
+      await afterLogin();
+    } else {
+      const name = authName.value.trim(); const repeat = authRepeat.value;
+      if(!name) { notify('Enter name', 'error'); return; }
+      if(password !== repeat){ notify('Passwords do not match', 'error'); return; }
+      const r = await apiFetch('/users/sign_up', {
+        method:'POST',
+        headers:{ 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password, repeat_password: repeat })
+      }, { appendTokenQuery:false, injectTokenToBody:false });
+
+      if(!r.ok){ notify('Register failed: ' + (r.text || r.json?.detail || r.status), 'error'); return; }
+      notify('Registered successfully — please login', 'success');
+      openAuth('login');
+    }
+  } catch(e){ console.error(e); notify('Network error', 'error'); }
+}
+
+async function afterLogin(){
+  // Hide auth links, show user links
+  hide(authLinks); show(userLinks);
+  // load profile and data
+  await loadProfile();
+  await loadCategories();
+  await loadProducts();
+  // show admin if available
+  if(isAdmin) show(adminCenter), show(q('btnAdminCenter'));
+}
+
+/* ---------- Logout ---------- */
+btnLogout?.addEventListener('click', async ()=>{
+  // clear local UI state
+  currentUser = null; isAdmin=false; window.APP_TOKEN = null;
+  try{ localStorage.removeItem('token'); }catch{}
+  // hide UI parts
+  hide(userLinks);
+  show(authLinks);
+  hide(adminCenter);
+  hide(cartDrawer); hide(profilePanel); hide(cardPanel); hide(adminPanel);
+  productsGrid.innerHTML=''; categoriesList.innerHTML='';
+  notify('Logged out', 'info');
+});
+
+/* ---------- Safe text reader for apiFetch result ---------- */
+function fmtFetchError(r){
+  if(!r) return 'Unknown';
+  if(r.text) return r.text;
+  if(r.json){
+    try {
+      if(r.json.detail) return JSON.stringify(r.json.detail);
+      return JSON.stringify(r.json);
+    } catch(e) { return String(r.status); }
+  }
+  if(r.error) return String(r.error);
+  return String(r.status || 'error');
+}
+
+/* ---------- Load user profile ---------- */
+async function loadProfile(){
+  try {
+    const r = await apiFetch('/users/get_info', { method:'GET' }, { appendTokenQuery:true, injectTokenToBody:false });
+    if(!r.ok){ console.warn('get_info failed', fmtFetchError(r)); return; }
+    const data = r.json || JSON.parse(r.text || '{}');
+    currentUser = data.info || null;
+    displayName.textContent = currentUser?.name || currentUser?.email || 'User';
+    profileName.textContent = currentUser?.name || '';
+    profileEmail.textContent = currentUser?.email || '';
+    if(data.info && ('is_admin' in data.info)) isAdmin = !!data.info.is_admin;
+    // try to get card balance / info
+    await loadCardInfo();
+    // load cart
+    await loadCart();
+  } catch(e){ console.error('profile load error',e); }
+}
+
+/* ---------- Card functions ---------- */
+async function loadCardInfo(){
+  try {
+    const r = await apiFetch('/card/get_info', { method:'GET' }, { appendTokenQuery:true, injectTokenToBody:false });
+    if(!r.ok){
+      cardInfo.innerText = 'No card info'; profileBalance.innerText = '$0';
+      return;
+    }
+    const data = r.json || JSON.parse(r.text || '{}');
+    const info = data.info;
+    if(!info){ cardInfo.innerText = 'No card'; profileBalance.innerText = '$0'; return; }
+    let html = `<div>Card: ${info.card}</div><div>Balance: $${info.balance}</div>`;
+    cardInfo.innerHTML = html;
+    profileBalance.innerText = `$${info.balance}`;
+  } catch(e){ console.error(e); cardInfo.innerText='Error'; }
+}
+
+async function createCard(){
+  const user_pass = cardUserPass.value;
+  const card_password = cardPass.value;
+  const repeat = cardPassRepeat.value;
+  if(!user_pass || !card_password || !repeat){ notify('Fill all fields', 'error'); return; }
+  try {
+    const r = await apiFetch('/card/create_card', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ user_password: user_pass, card_password, repeat_card_password: repeat })
+    }, { appendTokenQuery:true, injectTokenToBody:true });
+
+    if(!r.ok){ notify('Create card failed: ' + fmtFetchError(r), 'error'); return; }
+    notify('Card created', 'success');
+    hide(cardCreateForm);
+    await loadCardInfo();
+  } catch(e){ console.error(e); notify('Network error', 'error'); }
+}
+
+async function addBalance(){
+  const amount = Number(addAmount.value);
+  const card_password = addCardPass.value;
+  if(!amount || amount <= 0) { notify('Enter positive amount', 'error'); return; }
+  try {
+    const r = await apiFetch('/card/add_balance', {
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ amount, card_password })
+    }, { appendTokenQuery:true, injectTokenToBody:true });
+
+    if(!r.ok){ notify('Add balance failed: ' + fmtFetchError(r), 'error'); return; }
+    notify('Balance updated', 'success');
+    hide(cardAddBalanceForm);
+    await loadCardInfo();
+  } catch(e){ console.error(e); notify('Network error', 'error'); }
+}
+
+async function deleteCard(){
+  const pass = prompt('Enter card password to delete card'); // keeping prompt so user confirms sensitive action
+  if(!pass) return;
+  try {
+    const r = await apiFetch('/card/delete_card', {
+      method:'DELETE',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ card_password: pass })
+    }, { appendTokenQuery:true, injectTokenToBody:true });
+
+    if(!r.ok){ notify('Delete card failed: ' + fmtFetchError(r), 'error'); return; }
+    notify('Card deleted', 'success');
+    await loadCardInfo();
+  } catch(e){ console.error(e); notify('Network error', 'error'); }
+}
+
+/* ---------- Categories & Products (catalog) ---------- */
+let allProductsCache = []; // full list cached
+async function loadCategories(){
+  try {
+    const r = await apiFetch('/category/get_category', { method:'GET' }, { appendTokenQuery:true, injectTokenToBody:false });
+    if(!r.ok){ console.error('loadCategories failed:', fmtFetchError(r)); categoriesList.innerHTML = ''; return []; }
+    const cats = r.json || JSON.parse(r.text || '[]');
+    categoriesList.innerHTML = '';
+    const allBtn = document.createElement('button');
+    allBtn.className = 'px-3 py-2 text-left border rounded card-hover btn';
+    allBtn.innerText = 'All';
+    allBtn.addEventListener('click', ()=>renderProducts(allProductsCache));
+    categoriesList.appendChild(allBtn);
+
+    cats.forEach(c=>{
+      const b = document.createElement('button');
+      b.className = 'px-3 py-2 text-left border rounded card-hover btn';
+      b.innerText = c.name;
+      b.addEventListener('click', ()=>loadProductsByCategory(c.id));
+      categoriesList.appendChild(b);
+    });
+
+    // fill admin category selector too
+    if(adminProductCategory) adminProductCategory.innerHTML = '';
+    cats.forEach(c=>{
+      if(adminProductCategory){
+        const opt = document.createElement('option'); opt.value = c.id; opt.innerText = c.name;
+        adminProductCategory.appendChild(opt);
+      }
+    });
+
+    if(adminCategories) adminCategories.innerHTML = '';
+    cats.forEach(c=>{
+      if(adminCategories){
+        const row = document.createElement('div'); row.className='flex justify-between items-center p-2 border rounded';
+        row.innerHTML = `<div>${c.name}</div>`;
+        const del = document.createElement('button'); del.className='px-2 py-1 border rounded text-sm btn'; del.innerText='Delete';
+        del.addEventListener('click', ()=>adminDeleteCategory(c.id));
+        row.appendChild(del);
+        adminCategories.appendChild(row);
+      }
+    });
+
+    return cats;
+  } catch(e){ console.error('loadCategories', e); return []; }
+}
+
+async function loadProducts(){
+  try {
+    const r = await apiFetch('/category/product/get_products', { method:'GET' }, { appendTokenQuery:true, injectTokenToBody:false });
+    if(!r.ok){ console.error('loadProducts failed:', fmtFetchError(r)); allProductsCache = []; renderProducts([]); renderAdminProducts([]); return []; }
+    const prods = r.json || JSON.parse(r.text || '[]');
+    allProductsCache = Array.isArray(prods) ? prods : [];
+    renderProducts(allProductsCache);
+    renderAdminProducts(allProductsCache);
+    return allProductsCache;
+  } catch(e){ console.error('loadProducts', e); allProductsCache = []; renderProducts([]); renderAdminProducts([]); return []; }
+}
+
+async function loadProductsByCategory(catId){
+  try{
+    const r = await apiFetch('/category/product/get_products', { method:'GET' }, { appendTokenQuery:true, injectTokenToBody:false });
+    if(!r.ok){ console.error('loadProductsByCategory failed:', fmtFetchError(r)); renderProducts([]); return; }
+    let prods = r.json || JSON.parse(r.text || '[]');
+    prods = (prods || []).filter(p => Number(p.category_id) === Number(catId));
+    renderProducts(prods);
+  }catch(e){console.error(e); renderProducts([])}
+}
+
+function renderProducts(prods){
+  productsGrid.innerHTML = '';
+  const qVal = (searchInput?.value || '').trim().toLowerCase();
+  let arr = Array.isArray(prods) ? prods.slice() : [];
+  if(qVal) arr = arr.filter(p => ((p.name||'') + ' ' + (p.description||'')).toLowerCase().includes(qVal));
+  const sort = sortSelect?.value;
+  if(sort==='price_asc') arr.sort((a,b)=>Number(a.price||0)-Number(b.price||0));
+  else if(sort==='price_desc') arr.sort((a,b)=>Number(b.price||0)-Number(a.price||0));
+
+  arr.forEach(p=>{
+    const imageSrc = prefixImg(p.image_path || p.image || p.image_path || '');
+    const card = document.createElement('article');
+    card.className = 'bg-white border rounded overflow-hidden card-hover';
+    card.style.borderColor = 'var(--border)';
+    // добавлено class img-wrap для контейнера изображения, чтобы убрать baseline-gap и сдвиги текста
+    card.innerHTML = `
+      <div class="w-full h-48 bg-gray-100 overflow-hidden img-wrap">
+        <img src="${imageSrc}" alt="${(p.name||'')}" class="w-full h-full img-cover" onerror="this.onerror=null;this.src='https://via.placeholder.com/600x400?text=No+image'">
+      </div>
+      <div class="p-3">
+        <h4 class="font-semibold">${p.name || ''}</h4>
+        <p class="text-sm text-muted my-2">${p.category_name ? p.category_name : ''}</p>
+        <div class="flex items-center justify-between mt-3">
+          <div class="font-semibold">${fmtPrice(p.price)}</div>
+          <div class="flex items-center gap-2">
+            <input type="number" min="1" value="1" class="w-16 p-1 border rounded qty-input">
+            <button class="px-3 py-1 border rounded add-btn btn">Add</button>
+          </div>
+        </div>
+      </div>
+    `;
+    const addBtn = card.querySelector('.add-btn');
+    const qtyInput = card.querySelector('.qty-input');
+    addBtn?.addEventListener('click', ()=> addToCart(p.id ?? p.product_id, Number(qtyInput.value || 1)));
+    productsGrid.appendChild(card);
+  });
+}
+
+/* ---------- Admin UI ---------- */
+async function loadAdminData(){
+  await loadCategories();
+  await loadProducts();
+}
+function renderAdminProducts(prods){
+  if(!adminProductsList) return;
+  adminProductsList.innerHTML = '';
+  prods.slice(0,200).forEach(p=>{
+    const row = document.createElement('div'); row.className = 'flex justify-between items-center p-2 border rounded';
+    row.innerHTML = `<div>${p.name} — ${fmtPrice(p.price)}</div>`;
+    const wrap = document.createElement('div'); wrap.className='flex gap-2';
+    const del = document.createElement('button'); del.className='px-2 py-1 border rounded text-sm btn'; del.innerText='Delete';
+    del.addEventListener('click', ()=>adminDeleteProduct(p.id));
+    wrap.appendChild(del);
+    row.appendChild(wrap);
+    adminProductsList.appendChild(row);
+  });
+}
+async function adminAddCategoryFn(){
+  const name = adminNewCategory?.value.trim();
+  if(!name) { notify('Enter category name', 'error'); return; }
+  try {
+    const r = await apiFetch('/category/add_category', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name })
+    }, { appendTokenQuery:true, injectTokenToBody:true });
+    if(!r.ok){ notify('Failed to add category: ' + fmtFetchError(r), 'error'); return; }
+    if(adminNewCategory) adminNewCategory.value='';
+    loadAdminData();
+    notify('Category added', 'success');
+  } catch(e){ console.error(e); notify('Network error', 'error'); }
+}
+async function adminAddProductFn(){
+  const name = adminProductName?.value.trim();
+  const price = Number(adminProductPrice?.value);
+  const category_id = adminProductCategory?.value;
+  const file = adminProductImage?.files?.[0];
+  if(!name || isNaN(price) || !category_id || !file) { notify('Fill all product fields and pick image', 'error'); return; }
+
+  const fd = new FormData();
+  fd.append('category_id', category_id);
+  fd.append('name', name);
+  fd.append('price', price);
+  fd.append('image', file);
+  // apiFetch will append token to FormData if available
+  try {
+    const r = await apiFetch('/category/product/add_product', {
+      method: 'POST', body: fd
+    }, { appendTokenQuery:true, injectTokenToBody:true });
+    if(!r.ok){ notify('Failed to add product: ' + fmtFetchError(r), 'error'); return; }
+    if(adminProductName) adminProductName.value=''; if(adminProductPrice) adminProductPrice.value=''; if(adminProductImage) adminProductImage.value='';
+    loadAdminData();
+    notify('Product added', 'success');
+  } catch(e){ console.error(e); notify('Network error', 'error'); }
+}
+async function adminDeleteCategory(catId){
+  if(!confirm('Delete category?')) return;
+  try {
+    const r = await apiFetch(`/category/delete_category?category_id=${catId}`, { method:'DELETE' }, { appendTokenQuery:true, injectTokenToBody:false });
+    if(!r.ok){ notify('Delete failed: ' + fmtFetchError(r), 'error'); return; }
+    loadAdminData();
+    notify('Category deleted', 'success');
+  } catch(e){ console.error(e); notify('Network error', 'error'); }
+}
+async function adminDeleteProduct(prodId){
+  if(!confirm('Delete product?')) return;
+  try {
+    const r = await apiFetch(`/category/product/delete_product?product_id=${prodId}`, { method:'DELETE' }, { appendTokenQuery:true, injectTokenToBody:false });
+    if(!r.ok){ notify('Delete failed: ' + fmtFetchError(r), 'error'); return; }
+    loadAdminData();
+    notify('Product deleted', 'success');
+  } catch(e){ console.error(e); notify('Network error', 'error'); }
+}
+
+/* ---------- CART ---------- */
+/* addToCart: use apiFetch wrapper that injects token where needed */
+async function addToCart(product_id, quantity=1){
+  try {
+    const payload = { product_id: Number(product_id), quantity: Number(quantity || 1) };
+    const r = await apiFetch('/cart/add_product_to_cart', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    }, { appendTokenQuery:true, injectTokenToBody:true });
+    if(!r.ok){ notify('Add to cart failed: ' + fmtFetchError(r), 'error'); return; }
+    await loadCart();
+    show(cartDrawer);
+    notify('Added to cart', 'success');
+  } catch(e){ console.error(e); notify('Network error', 'error'); }
+}
+
+async function loadCart(){
+  try {
+    const r = await apiFetch('/cart/get_info', { method:'GET' }, { appendTokenQuery:true, injectTokenToBody:false });
+    if(!r.ok){ console.error('loadCart failed:', fmtFetchError(r)); cartData = { cart_items: [], total_price: 0 }; renderCart(); return; }
+    const data = r.json || JSON.parse(r.text || '{}');
+    cartData = data || { cart_items: [], total_price: 0 };
+    renderCart();
+  } catch(e){ console.error(e); cartData = { cart_items: [], total_price: 0 }; renderCart(); }
+}
+
+function renderCart(){
+  cartItemsEl.innerHTML = '';
+  if(!cartData || !cartData.cart_items || cartData.cart_items.length === 0){
+    cartItemsEl.innerHTML = '<div class="text-sm text-muted">Cart is empty</div>';
+    cartTotalEl.innerText = fmtPrice(0);
+    return;
+  }
+  cartData.cart_items.forEach(item=>{
+    const row = document.createElement('div'); row.className='flex items-center gap-3';
+    const imageSrc = prefixImg(item.image_path || item.image || '');
+    // добавлен класс img-wrap для контейнера картинки cart, чтобы избежать сдвигов
+    row.innerHTML = `
+      <div class="w-12 h-12 bg-gray-100 rounded overflow-hidden img-wrap">
+        <img src="${imageSrc}" class="w-full h-full img-cover" alt="${item.name || ''}" onerror="this.onerror=null;this.src='https://via.placeholder.com/200x140?text=No+image'">
+      </div>
+      <div class="flex-1">
+        <div class="font-medium">${item.name || ''}</div>
+        <div class="text-sm text-muted">${fmtPrice(item.price)} × ${item.quantity}</div>
+      </div>
+      <div class="flex flex-col gap-1">
+        <button class="px-2 py-1 border rounded inc btn">+</button>
+        <button class="px-2 py-1 border rounded dec btn">-</button>
+        <button class="px-2 py-1 border rounded text-red-600 del btn">Remove</button>
+      </div>
+    `;
+    const cid = item.cart_item_id || item.id || item.product_id;
+    const incBtn = row.querySelector('.inc');
+    const decBtn = row.querySelector('.dec');
+    const delBtn = row.querySelector('.del');
+    incBtn?.addEventListener('click', ()=>updateCartItem(cid, 1));
+    decBtn?.addEventListener('click', ()=>updateCartItem(cid, -1));
+    delBtn?.addEventListener('click', ()=>deleteCartItem(cid));
+    cartItemsEl.appendChild(row);
+  });
+  cartTotalEl.innerText = fmtPrice(cartData.total_price || 0);
+}
+
+async function updateCartItem(cart_item_id, delta){
+  if(delta < 0){
+    try {
+      const r = await apiFetch('/cart/remove_one_item', {
+        method:'PUT',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ cart_item_id: cart_item_id, amount: 1 })
+      }, { appendTokenQuery:true, injectTokenToBody:true });
+      if(!r.ok){ notify('Update failed: ' + fmtFetchError(r), 'error'); return; }
+      await loadCart();
+    } catch(e){ console.error(e); notify('Network error', 'error'); }
+  } else {
+    try {
+      const r = await apiFetch('/cart/add_product_to_cart', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ product_id: cart_item_id, quantity: delta })
+      }, { appendTokenQuery:true, injectTokenToBody:true });
+      if(!r.ok){ notify('Update failed: ' + fmtFetchError(r), 'error'); return; }
+      await loadCart();
+    } catch(e){ console.error(e); notify('Network error', 'error'); }
+  }
+}
+
+async function deleteCartItem(cart_item_id){
+  try {
+    const r = await apiFetch('/cart/delete_product', {
+      method:'DELETE',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ cart_item_id })
+    }, { appendTokenQuery:true, injectTokenToBody:true });
+    if(!r.ok){ notify('Remove failed: ' + fmtFetchError(r), 'error'); return; }
+    await loadCart();
+  } catch(e){ console.error(e); notify('Network error', 'error'); }
+}
+
+btnClearCart?.addEventListener('click', async ()=>{
+  if(!confirm('Clear cart?')) return;
+  try {
+    const r = await apiFetch('/cart/delete_all_items', { method:'DELETE' }, { appendTokenQuery:true, injectTokenToBody:false });
+    if(!r.ok){ notify('Clear failed: ' + fmtFetchError(r), 'error'); return; }
+    await loadCart();
+    notify('Cart cleared', 'success');
+  } catch(e){ console.error(e); notify('Network error', 'error'); }
+});
+
+btnPayAll?.addEventListener('click', async ()=>{
+  try {
+    const r = await apiFetch('/payment/pay_for_all_items', { method:'PUT' }, { appendTokenQuery:true, injectTokenToBody:false });
+    if(!r.ok){ notify('Payment failed: ' + fmtFetchError(r), 'error'); return; }
+    const data = r.json || JSON.parse(r.text || '{}');
+    notify(data.message || 'Paid', 'success');
+    await loadCart();
+    await loadCardInfo();
+  } catch(e){ console.error(e); notify('Network error', 'error'); }
+});
+
+/* ---------- Profile edits ---------- */
+async function updateName(){
+  const newName = newNameInput.value.trim();
+  const pass = namePassword.value;
+  if(!newName || !pass) { notify('Fill name and current password', 'error'); return; }
+  try {
+    const r = await apiFetch('/users/change_name', {
+      method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ password: pass, new_name: newName })
+    }, { appendTokenQuery:true, injectTokenToBody:true });
+    if(!r.ok){ notify('Change name failed: ' + fmtFetchError(r), 'error'); return; }
+    notify('Name changed', 'success');
+    hide(profileEdit);
+    await loadProfile();
+  } catch(e){ console.error(e); notify('Network error', 'error'); }
+}
+
+async function changePassword(){
+  const oldP = q('oldPass')?.value || document.getElementById('oldPass')?.value;
+  const newP = q('newPass')?.value || document.getElementById('newPass')?.value;
+  const rep = q('newPassRepeat')?.value || document.getElementById('newPassRepeat')?.value;
+  if(!oldP || !newP || !rep) { notify('Fill passwords', 'error'); return; }
+  try {
+    const r = await apiFetch('/users/change_password', {
+      method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ old_password: oldP, new_password: newP, repeat_new_password: rep })
+    }, { appendTokenQuery:true, injectTokenToBody:true });
+    if(!r.ok){ notify('Change failed: ' + fmtFetchError(r), 'error'); return; }
+    notify('Password changed', 'success');
+    hide(passwordEdit);
+  } catch(e){ console.error(e); notify('Network error', 'error'); }
+}
+
+async function deleteAccount(){
+  const pass = deletePassInput.value;
+  if(!pass) { notify('Enter password to delete', 'error'); return; }
+  if(!confirm('Delete account permanently?')) return;
+  try {
+    const r = await apiFetch('/users/delete_user', {
+      method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ password: pass })
+    }, { appendTokenQuery:true, injectTokenToBody:true });
+    if(!r.ok){ notify('Delete failed: ' + fmtFetchError(r), 'error'); return; }
+    notify('Account deleted. Logging out', 'success');
+    btnLogout.click();
+  } catch(e){ console.error(e); notify('Network error', 'error'); }
+}
+
+/* ---------- Start / Boot ---------- */
+(async function boot(){
+  // Try to pick up existing token from localStorage or cookie
+  const t = (localStorage.getItem('token') || getCookie('token') || null);
+  if(t){ window.APP_TOKEN = t; }
+
+  // initial UI state
+  openAuth('login');
+
+  // hooks
+  searchInput?.addEventListener('input', ()=>renderProducts(allProductsCache));
+  sortSelect?.addEventListener('change', ()=>renderProducts(allProductsCache));
+})();
+</script>
+</body>
+</html>
+

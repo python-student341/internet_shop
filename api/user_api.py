@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, Cookie, Response
 from sqlalchemy import select, delete
 
-from models.models import UserModel
-from schemas.user_schemas import CreateUserSchema, LoginUserSchema, CPSchema, CNSchema, DeleteUserSchema
+from models.models import UserModel, CartModel
+from schemas.user_schemas import CreateUserSchema, LoginUserSchema, ChangePasswordSchema, ChangeNameSchema, DeleteUserSchema
 from database.database import session_dep
 from database.hash import hashing_password, pwd_context, security, config
 
@@ -21,6 +21,9 @@ async def sign_up(data: CreateUserSchema, session: session_dep):
     if exiting_user.scalar_one_or_none():
         raise HTTPException(status_code=409, detail='This email already exits in database')
 
+    if data.password != data.repeat_password:
+        raise HTTPException(status_code=400, detail="The passwords don't match")
+
     new_user = UserModel(
         email=data.email,
         name=data.name,
@@ -28,6 +31,13 @@ async def sign_up(data: CreateUserSchema, session: session_dep):
     )
 
     session.add(new_user)
+    await session.flush()
+
+    new_cart = CartModel(
+        user_id=new_user.id
+    )
+
+    session.add(new_cart)
     await session.commit()
 
     return {'success': True, 'message': 'User was added', 'info': new_user}
@@ -41,10 +51,10 @@ async def sign_in(data: LoginUserSchema, session: session_dep, response: Respons
     current_user = result.scalar_one_or_none()
 
     if not current_user:
-        return {'success': False, 'message': 'User not found'}
+        raise HTTPException(status_code=404, detail='User not found')
 
     if not pwd_context.verify(data.password, current_user.password):
-        return {'success': False, 'message': 'Incorrect password'}
+        raise HTTPException(status_code=400, detail='Incorrect password')
 
     token = security.create_access_token(uid=str(current_user.id))
     response.set_cookie(key=config.JWT_ACCESS_COOKIE_NAME, value=token, httponly=True, samesite='Lax', max_age=60*60)
@@ -52,27 +62,43 @@ async def sign_in(data: LoginUserSchema, session: session_dep, response: Respons
     return {'success': True, 'message': 'Login successful', 'token': token}
 
 
-@router.put('/users/change_password', tags=['Users'])
-async def change_password(id: int, data: CPSchema, session: session_dep, token: str = Cookie(None)):
-    
+@router.get('/users/get_info', tags=['Users'])
+async def get_info(session: session_dep, token: str = Cookie):
+
     if not token:
-        return {'success': False, 'message': 'No token'}
+        raise HTTPException(status_code=401, detail='No token')
 
     payload = security._decode_token(token)
     user_id = int(payload.sub)
 
-    if user_id != id:
-        return {'success': False, 'message': 'You can only change your own data'}
+    query = select(UserModel).where(UserModel.id == user_id)
+    result = await session.execute(query)
+    current_user = result.scalar_one_or_none()
 
-    query = select(UserModel).where(UserModel.id == id)
+    if not current_user:
+        raise HTTPException(status_code=404, detail='User not found')
+
+    return {'success': True, 'info': {'id': current_user.id, 'email': current_user.email, 'name': current_user.name}}
+
+
+@router.put('/users/change_password', tags=['Users'])
+async def change_password(data: ChangePasswordSchema, session: session_dep, token: str = Cookie):
+    
+    if not token:
+        raise HTTPException(status_code=401, detail="No token")
+
+    payload = security._decode_token(token)
+    user_id = int(payload.sub)
+
+    query = select(UserModel).where(UserModel.id == user_id)
     result = await session.execute(query)
     current_user = result.scalar_one_or_none()
 
     if not pwd_context.verify(data.old_password, current_user.password):
-        return {'success': False, 'message': "Incorrect password"}
+        raise HTTPException(status_code=400, detail='Incorrect password')
 
     if data.new_password != data.repeat_new_password:
-        return {'success': False, 'message': "The passwords don't match"}
+        raise HTTPException(status_code=400, detail="The passwords don't match")
 
     current_user.password = hashing_password(data.new_password)
 
@@ -83,23 +109,20 @@ async def change_password(id: int, data: CPSchema, session: session_dep, token: 
 
 
 @router.put('/users/change_name', tags=['Users'])
-async def change_name(id: int, data: CNSchema, session: session_dep, token: str = Cookie(None)):
+async def change_name(data: ChangeNameSchema, session: session_dep, token: str = Cookie):
 
     if not token:
-        return {'success': False, 'message': 'No token'}
+        raise HTTPException(status_code=401, detail="No token")
 
     payload = security._decode_token(token)
     user_id = int(payload.sub)
 
-    query = select(UserModel).where(UserModel.id == id)
+    query = select(UserModel).where(UserModel.id == user_id)
     result = await session.execute(query)
     current_user = result.scalar_one_or_none()
 
-    if user_id != id:
-        return {'success': False, 'message': 'You can only change your own data'}
-
     if not pwd_context.verify(data.password, current_user.password):
-        return {'success': False, 'message': 'Incorrect password'}
+        raise HTTPException(status_code=400, detail='Incorrect password')
 
     current_user.name = data.new_name
 
@@ -110,27 +133,22 @@ async def change_name(id: int, data: CNSchema, session: session_dep, token: str 
 
 
 @router.delete('/users/delete_user', tags=['Users'])
-async def delete_user(id: int, data: DeleteUserSchema, session: session_dep, token: str = Cookie(None)):
+async def delete_user(data: DeleteUserSchema, session: session_dep, token: str = Cookie):
 
     if not token:
-        return {'success': False, 'message': 'No token'}
+        raise HTTPException(status_code=401, detail="No token")
 
     payload = security._decode_token(token)
     user_id = int(payload.sub)
 
-    query = select(UserModel).where(UserModel.id == id)
+    query = select(UserModel).where(UserModel.id == user_id)
     result = await session.execute(query)
     current_user = result.scalar_one_or_none()
 
-    if user_id != id:
-        return {'success': False, 'message': 'You can only change your own data'}
-
     if not pwd_context.verify(data.password, current_user.password):
-        return {'success': False, 'message': 'Incorrect password'}
+        raise HTTPException(status_code=400, detail='Incorrect password')
 
-    deleted_user = delete(UserModel).where(UserModel.id == id)
-
-    await session.execute(deleted_user)
+    await session.delete(current_user)
     await session.commit()
 
     return {'success': True, 'message': 'User was deleted'}
