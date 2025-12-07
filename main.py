@@ -6,7 +6,7 @@ import os
 
 from backend.router import main_router
 
-app = FastAPI()#docs_url=None, redoc_url=None, openapi_url=None)
+app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
 app.include_router(main_router)
 
