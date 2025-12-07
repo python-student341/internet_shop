@@ -3,7 +3,7 @@ from sqlalchemy import ForeignKey, BigInteger
 from pydantic import EmailStr
 from datetime import datetime
 
-from database.database import Base
+from backend.database.database import Base
 
 
 class UserModel(Base):

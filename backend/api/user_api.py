@@ -1,10 +1,10 @@
 from fastapi import APIRouter, HTTPException, Cookie, Response
 from sqlalchemy import select, delete
 
-from models.models import UserModel, CartModel
-from schemas.user_schemas import CreateUserSchema, LoginUserSchema, ChangePasswordSchema, ChangeNameSchema, DeleteUserSchema
-from database.database import session_dep
-from database.hash import hashing_password, pwd_context, security, config
+from backend.models.models import UserModel, CartModel
+from backend.schemas.user_schemas import CreateUserSchema, LoginUserSchema, ChangePasswordSchema, ChangeNameSchema, DeleteUserSchema
+from backend.database.database import session_dep
+from backend.database.hash import hashing_password, pwd_context, security, config
 
 
 router = APIRouter()

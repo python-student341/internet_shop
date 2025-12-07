@@ -2,11 +2,11 @@ from fastapi import APIRouter, HTTPException, Cookie, Depends, UploadFile, File,
 from sqlalchemy import select, delete
 import os
 
-from models.models import CategoryModel, ProductModel, UserModel
-from schemas.category_schema import CategoryShema, ChangeCategoryNameSchema
-from schemas.product_schema import ProductSchema, ChangeProductNameSchema, ChangeProductPriceSchema
-from database.database import session_dep
-from database.hash import security
+from backend.models.models import CategoryModel, ProductModel, UserModel
+from backend.schemas.category_schema import CategoryShema, ChangeCategoryNameSchema
+from backend.schemas.product_schema import ProductSchema, ChangeProductNameSchema, ChangeProductPriceSchema
+from backend.database.database import session_dep
+from backend.database.hash import security
 
 
 router = APIRouter()

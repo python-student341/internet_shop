@@ -1,8 +1,7 @@
 from authx import AuthXConfig, AuthX
 from passlib.context import CryptContext
 from datetime import timedelta
-import jwt
-from fastapi import HTTPException
+
 
 
 pwd_context = CryptContext(schemes=['bcrypt'], deprecated='auto')

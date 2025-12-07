@@ -5,7 +5,7 @@ from fastapi import Depends
 from typing import Annotated
 from sqlalchemy.orm import DeclarativeBase
 
-from database.hash import config
+from backend.database.hash import config
 
 
 env = Env()

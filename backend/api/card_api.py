@@ -2,10 +2,10 @@ from fastapi import APIRouter, HTTPException, Cookie, Response
 from sqlalchemy import select, delete
 import random
 
-from models.models import CardModel, UserModel
-from schemas.card_schema import CreateCardShema, UpdateBalanceSchema, ChangeCardPasswordSchema, DeleteCardSchema
-from database.database import session_dep
-from database.hash import hashing_password, pwd_context, security, config
+from backend.models.models import CardModel, UserModel
+from backend.schemas.card_schema import CreateCardShema, UpdateBalanceSchema, ChangeCardPasswordSchema, DeleteCardSchema
+from backend.database.database import session_dep
+from backend.database.hash import hashing_password, pwd_context, security, config
 
 
 router = APIRouter()

@@ -1,8 +1,8 @@
 from fastapi import APIRouter
 from sqlalchemy import select
 
-from database.database import session_dep
-from models.models import CategoryModel, ProductModel
+from backend.database.database import session_dep
+from backend.models.models import CategoryModel, ProductModel
 
 
 router = APIRouter()

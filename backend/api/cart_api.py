@@ -2,10 +2,10 @@ from fastapi import APIRouter, HTTPException, Cookie
 from sqlalchemy import select, delete
 from sqlalchemy.orm import joinedload
 
-from models.models import CartItemModel, CartModel, UserModel, ProductModel
-from schemas.cart_schema import CartItemSchema, DeleteItemSchema, DeleteOneItemSchema
-from database.database import session_dep
-from database.hash import security
+from backend.models.models import CartItemModel, CartModel, UserModel, ProductModel
+from backend.schemas.cart_schema import CartItemSchema, DeleteItemSchema, DeleteOneItemSchema
+from backend.database.database import session_dep
+from backend.database.hash import security
 
 
 router = APIRouter()
